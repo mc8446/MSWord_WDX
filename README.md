@@ -1,6 +1,6 @@
 # 📄 Total Commander Word Properties Plugin
 
-A C++ `.wdx` plugin that enables Total Commander to display detailed metadata and tracked change statistics from Microsoft Word `.docx` files—without needing Microsoft Word installed.
+A C++ `.wdx` plugin that enables Total Commander to display detailed metadata and tracked change statistics from Microsoft Word `.docx` files - without needing Microsoft Word installed.
 
 ## ✨ Features
 
@@ -23,11 +23,11 @@ This plugin extends Total Commander by allowing you to:
 |                       | Last Modified By, Revision Number | String / Int |
 |                       | Total Editing Time, Pages, Words, Characters, Paragraphs, Lines | Int |
 | **Document Settings** | Compatibility Mode, Auto Update Styles, Anonymised Files, Document Protection | Bool / String |
-| **Tracked Changes**   | Has Tracked Changes, Tracked Changes Enabled | Bool |
+| **Tracked Changes**   | Track Changes Activated/Deactivated, Tracked Changes Present | Bool |
 |                       | Tracked Changes Authors           | String     |
 |                       | Total Revisions, Insertions, Deletions, Moves, Formatting Changes | Int |
 | **Comments**          | Number of Comments                | Int        |
-| **Hidden Text**       | Has Hidden Text                   | Bool       |
+| **Hidden Text**       | Hidden Text                   | Bool       |
 
 *Note: Fields appear in Total Commander’s "Custom Columns" dialog when configuring a content plugin view.*
 
@@ -35,7 +35,7 @@ This plugin extends Total Commander by allowing you to:
 
 ## 💻 Installation
 
-1. **Download**: Get the latest `.wdx` plugin file from the [Releases](https://github.com/mlc8446/MSWord_WDX/releases).
+1. **Download**: Get the latest `.wdx` plugin file from the [Releases](https://github.com/mc8446/MSWord_WDX/releases).
 2. **Install in Total Commander**:
    - Open Total Commander → `Configuration > Options > Plugins`.
    - Under **Content Plugins (.WDX)**, click **Configure...**, then **Add...**.
@@ -72,6 +72,7 @@ Once installed, navigate to a folder with `.docx` files:
 git clone https://github.com/mlc8446/MSWord_WDX.git
 cd MSWord_WDX
 ```
+Rename the output `.dll` file with the extension `.wdx` or `.wdx64`.
 
 ## ⚠️ Notes & Limitations
 
