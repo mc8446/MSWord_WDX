@@ -32,3 +32,7 @@ The following table details the specific metadata fields our plugin analyzes:
 | **Characters** | Int          | The total count of characters (including spaces) within the document's main content.|               
 | **Paragraphs** | Int          | The total number of paragraphs in the document.                                    |                    
 | **Lines** | Int          | The total number of lines in the document. (Note: May vary based on word wrap/display settings).     |
+
+---
+
+[Back to Documentation Overview](index.md)
