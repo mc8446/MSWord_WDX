@@ -10,13 +10,13 @@ The plugin helps you quickly identify and analyze various properties within your
 
 Click on a category below to access the explanation of the fields checked within that area.
 
-* [**Metadata Checks**](docs/metadata-checks.md)
+* [**Metadata Checks**](metadata-checks.md)
     * *Identify document metadata such as authors, document title, revision number, creation dates, and other document information.*
-* [**Document Settings Checks**](docs/document-settings-checks.md)
+* [**Document Settings Checks**](document-settings-checks.md)
     * *View document configurations like compatibility modes and protection settings.*
-* [**Document Checks**](docs/document-checks.md)
+* [**Document Checks**](document-checks.md)
     * *Count of comments, presence of hidden text within documents.*
-* [**Tracked Changes Checks**](docs/tracked-changes-checks.md)
+* [**Tracked Changes Checks**](tracked-changes-checks.md)
     * *Analyze tracked changes settinngs, revision information (insertions, deletions, etc.) and authors of tracked changes.*
 
 ---
