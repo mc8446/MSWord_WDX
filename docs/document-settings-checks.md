@@ -17,4 +17,4 @@ The following table details the specific document setting fields our plugin anal
 
 ---
 
-[Back to Documentation Overview](docs/index.md)
+[Back to Documentation Overview](index.md)
