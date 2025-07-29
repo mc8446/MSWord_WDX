@@ -23,11 +23,12 @@ This plugin extends Total Commander by allowing you to:
 |                       | Last Modified By, Revision Number | String / Int |
 |                       | Total Editing Time, Pages, Words, Characters, Paragraphs, Lines | Int |
 | **Document Settings** | Compatibility Mode, Auto Update Styles, Anonymised Files, Document Protection | Bool / String |
+| **Document Checks**          | Number of Comments                | Int        |
+|                       | Hidden Text                   | Bool       |
 | **Tracked Changes**   | Track Changes Activated/Deactivated, Tracked Changes Present | Bool |
 |                       | Tracked Changes Authors           | String     |
 |                       | Total Revisions, Insertions, Deletions, Moves, Formatting Changes | Int |
-| **Comments**          | Number of Comments                | Int        |
-| **Hidden Text**       | Hidden Text                   | Bool       |
+
 
 *Note: Fields appear in Total Commander’s "Custom Columns" dialog when configuring a content plugin view.*
 
