@@ -15,4 +15,4 @@ The following table details the specific fields our plugin analyzes related to d
 
 ---
 
-[Back to Documentation Overview](docs/index.md)
+[Back to Documentation Overview](index.md)
