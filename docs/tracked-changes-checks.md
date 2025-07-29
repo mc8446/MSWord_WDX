@@ -21,4 +21,4 @@ The following table details the specific fields the plugin analyses regarding tr
 
 ---
 
-[Back to Documentation Overview](docs/index.md)
+[Back to Documentation Overview](index.md)
