@@ -17,7 +17,7 @@ Click on a category below to access the explanation of the fields checked within
 * [**Document Checks**](document-checks.md)
     * *Count of comments, presence of hidden text within documents.*
 * [**Tracked Changes Checks**](tracked-changes-checks.md)
-    * *Analyze tracked changes settinngs, revision information (insertions, deletions, etc.) and authors of tracked changes.*
+    * *Analyze tracked changes settings, revision information (insertions, deletions, etc.) and authors of tracked changes.*
 
 ---
 
