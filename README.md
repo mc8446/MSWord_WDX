@@ -1,4 +1,4 @@
-# 📄 Total Commander Word Properties Plugin
+# 📄 Microsoft Word Content Plugin (.wdx) for Total Commander
 
 A C++ `.wdx` plugin that enables Total Commander to display detailed metadata and tracked change statistics from Microsoft Word `.docx` files - without needing Microsoft Word installed.
 
