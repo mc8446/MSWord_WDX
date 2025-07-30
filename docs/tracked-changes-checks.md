@@ -17,7 +17,9 @@ The following table details the specific fields the plugin analyses regarding tr
 | **Insertions** | Int        | The total number of text or object insertions recorded as tracked changes.                                                                                                                                                                                                                                  |
 | **Deletions** | Int        | The total number of text or object deletions recorded as tracked changes.                                                                                                                                                                                                                                   |
 | **Moves** | Int        | The total number of text or object movements recorded as tracked changes (where content was cut from one place and pasted into another, and tracked as a move).                                                                                                                                                 |
-| **Formatting Changes** | Int        | The total number of formatting modifications (e.g., bolding, font changes, paragraph spacing) recorded as tracked changes.                                                                                                                                                                                |
+| **Formatting Changes** | Int        | The total number of formatting modifications (e.g., bolding, font changes, paragraph spacing) recorded as tracked changes.           |
+
+*Note: The number of Moves and Formatting changes may vary slightly compared to the amount show in the Revisions Pane in Word, due to how Word interprets these changes to show the user in the file.*
 
 ---
 
