@@ -122,11 +122,37 @@ void ExtractAuthorsRecursive(tinyxml2::XMLElement* elem, std::set<std::string>& 
     const char* name = elem->Name();
     if (name)
     {
-        if (strcmp(name, "w:ins") == 0 || strcmp(name, "w:del") == 0)
+        // Add conditions for various formatting change tags
+        if (strcmp(name, "w:ins") == 0 ||
+            strcmp(name, "w:del") == 0 ||
+            strcmp(name, "w:rPrChange") == 0 ||
+            strcmp(name, "w:pPrChange") == 0 ||
+            strcmp(name, "w:sectPrChange") == 0 ||
+            strcmp(name, "w:tblPrChange") == 0 ||
+            strcmp(name, "w:tblGridChange") == 0 ||
+            strcmp(name, "w:trPrChange") == 0 ||
+            strcmp(name, "w:tcPrChange") == 0 ||
+            strcmp(name, "w:shd") == 0 ||
+            strcmp(name, "w:border") == 0 ||
+            strcmp(name, "w:jc") == 0 ||
+            strcmp(name, "w:ind") == 0 ||
+            strcmp(name, "w:spacing") == 0 ||
+            strcmp(name, "w:numPr") == 0 ||
+            strcmp(name, "w:tabs") == 0 ||
+            strcmp(name, "w:altChunk") == 0 ||
+            strcmp(name, "w:smartTagPr") == 0 ||
+            strcmp(name, "w:customXmlPr") == 0 ||
+            strcmp(name, "w:sdtPr") == 0 ||
+            strcmp(name, "w:style") == 0 ||
+            strcmp(name, "w:tblLook") == 0)
         {
             const char* author = elem->Attribute("w:author");
             if (author)
                 authors.insert(author);
+            // Some formatting changes might have 'w:originalAuthor' as well
+            const char* originalAuthor = elem->Attribute("w:originalAuthor");
+            if (originalAuthor)
+                authors.insert(originalAuthor);
         }
     }
 
@@ -181,41 +207,75 @@ std::set<std::string> GetTrackedChangeAuthorsFromAllXml(const char* zipPath)
 }
 
 // Checks if the document XML content contains any type of tracked changes (insertions, deletions, or formatting changes).
-bool HasTrackedChanges(const std::string& xmlContent)
+bool HasTrackedChanges(const char* zipPath)
 {
-    tinyxml2::XMLDocument doc;
-    if (doc.Parse(xmlContent.c_str()) != tinyxml2::XML_SUCCESS)
+    mz_zip_archive zip_archive;
+    memset(&zip_archive, 0, sizeof(zip_archive));
+
+    if (!mz_zip_reader_init_file(&zip_archive, zipPath, 0))
         return false;
 
-    tinyxml2::XMLElement* root = doc.RootElement();
-    if (!root) return false;
-
     bool found = false;
-    std::function<void(tinyxml2::XMLElement*)> check = [&](tinyxml2::XMLElement* elem)
-        {
-            if (!elem || found) return;
+    mz_uint num_files = mz_zip_reader_get_num_files(&zip_archive);
+    for (mz_uint i = 0; i < num_files; ++i)
+    {
+        mz_zip_archive_file_stat file_stat;
+        if (!mz_zip_reader_file_stat(&zip_archive, i, &file_stat))
+            continue;
 
-            const char* name = elem->Name();
-            if (name)
+        const char* fname = file_stat.m_filename;
+        if (!fname) continue;
+
+        // Process only XML files within the "word/" directory
+        if (strncmp(fname, "word/", 5) != 0 || strstr(fname, ".xml") == nullptr)
+            continue;
+
+        size_t uncompressed_size = 0;
+        void* p = mz_zip_reader_extract_to_heap(&zip_archive, i, &uncompressed_size, 0);
+        if (!p) continue;
+
+        std::string content(static_cast<char*>(p), uncompressed_size);
+        mz_free(p);
+
+        tinyxml2::XMLDocument doc;
+        if (doc.Parse(content.c_str()) != tinyxml2::XML_SUCCESS) continue;
+
+        tinyxml2::XMLElement* root = doc.RootElement();
+        if (!root) continue;
+
+        std::function<void(tinyxml2::XMLElement*)> check = [&](tinyxml2::XMLElement* elem)
             {
-                // Check for insertions, deletions, and various types of formatting changes
-                if (strcmp(name, "w:ins") == 0 ||
-                    strcmp(name, "w:del") == 0 ||
-                    strcmp(name, "w:rPrChange") == 0 || // Run properties (character formatting)
-                    strcmp(name, "w:pPrChange") == 0 || // Paragraph properties
-                    strcmp(name, "w:sectPrChange") == 0 || // Section properties
-                    strcmp(name, "w:tblPrChange") == 0) // Table properties
+                if (!elem || found) return;
+
+                const char* name = elem->Name();
+                if (name)
                 {
-                    found = true;
-                    return;
+                    // ONLY check for explicit tracked change tags
+                    if (strcmp(name, "w:ins") == 0 ||
+                        strcmp(name, "w:del") == 0 ||
+                        strcmp(name, "w:moveFrom") == 0 ||
+                        strcmp(name, "w:rPrChange") == 0 ||     // Run properties (character formatting) change
+                        strcmp(name, "w:pPrChange") == 0 ||     // Paragraph properties change
+                        strcmp(name, "w:sectPrChange") == 0 ||  // Section properties change
+                        strcmp(name, "w:tblPrChange") == 0 ||   // Table properties change
+                        strcmp(name, "w:tblGridChange") == 0 || // Table grid properties change
+                        strcmp(name, "w:trPrChange") == 0 ||    // Table row properties change
+                        strcmp(name, "w:tcPrChange") == 0)      // Table cell properties change
+                    {
+                        found = true;
+                        return;
+                    }
                 }
-            }
 
-            for (tinyxml2::XMLElement* child = elem->FirstChildElement(); child != nullptr; child = child->NextSiblingElement())
-                check(child);
-        };
+                for (tinyxml2::XMLElement* child = elem->FirstChildElement(); child != nullptr; child = child->NextSiblingElement())
+                    check(child);
+            };
 
-    check(root);
+        check(root);
+        if (found) break; // Found changes, no need to check further files
+    }
+
+    mz_zip_reader_end(&zip_archive);
     return found;
 }
 
@@ -375,18 +435,19 @@ bool IsCompatibilityModeEnabled(const std::string& settingsXmlContent)
                         // Word 2003 (val="11") would also be compatibility mode.
                         return compatVal < 15;
                     }
-                    catch (const std::invalid_argument& e) {
+                    catch (const std::invalid_argument&) {
                         return false;
                     }
-                    catch (const std::out_of_range& e) {
+                    catch (const std::out_of_range&) {
                         return false;
                     }
                 }
             }
             compatSetting = compatSetting->NextSiblingElement("w:compatSetting");
         }
-        return false;
+        
     }
+    return false;
 }
 
 std::string GetXmlStringValue(const std::string& xmlContent, const char* elementName) {
@@ -489,56 +550,58 @@ bool FormatSystemTimeToString(const FILETIME& ft_utc, int unitIndex, wchar_t* ou
 
     int wlen = 0;
     switch (unitIndex) {
-        case 0:
-        case 3:
-            wlen = GetDateFormatW(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &sysTime_local, NULL, outputWStr, maxWLen);
-            if (wlen > 0) {
-                size_t current_len = wcslen(outputWStr);
-                if (maxWLen - current_len < 2) return false;
-                wcscat_s(outputWStr, maxWLen, L" ");
-                
-                int time_len = GetTimeFormatW(LOCALE_USER_DEFAULT, 0, &sysTime_local, NULL, outputWStr + current_len + 1, maxWLen - (current_len + 1));
-                if (time_len > 0) wlen += (time_len -1);
-                else return false;
-            }
-            break;
-        case 1:
-            wlen = GetDateFormatW(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &sysTime_local, NULL, outputWStr, maxWLen);
-            break;
-        case 2:
-            wlen = GetTimeFormatW(LOCALE_USER_DEFAULT, 0, &sysTime_local, NULL, outputWStr, maxWLen);
-            break;
-        case 4:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%04d", sysTime_local.wYear);
-            break;
-        case 5:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%02d", sysTime_local.wMonth);
-            break;
-        case 6:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%02d", sysTime_local.wDay);
-            break;
-        case 7:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%02d", sysTime_local.wHour);
-            break;
-        case 8:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%02d", sysTime_local.wMinute);
-            break;
-        case 9:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%02d", sysTime_local.wSecond);
-            break;
-        case 10:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%04d-%02d-%02d", sysTime_local.wYear, sysTime_local.wMonth, sysTime_local.wDay);
-            break;
-        case 11:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%02d:%02d:%02d", sysTime_local.wHour, sysTime_local.wMinute, sysTime_local.wSecond);
-            break;
-        case 12:
-            wlen = swprintf_s(outputWStr, maxWLen, L"%04d-%02d-%02d %02d:%02d:%02d",
-                              sysTime_local.wYear, sysTime_local.wMonth, sysTime_local.wDay,
-                              sysTime_local.wHour, sysTime_local.wMinute, sysTime_local.wSecond);
-            break;
-        default:
-            return false;
+    case 0:
+    case 3:
+        wlen = GetDateFormatW(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &sysTime_local, NULL, outputWStr, maxWLen);
+        if (wlen > 0) {
+            // Explicitly cast to int as wcslen returns size_t
+            int current_len = static_cast<int>(wcslen(outputWStr));
+            if (maxWLen - current_len < 2) return false;
+            wcscat_s(outputWStr, static_cast<size_t>(maxWLen), L" "); // wcscat_s expects size_t for buffer size
+
+            // Explicitly cast to int for length calculation for GetTimeFormatW
+            int time_len = GetTimeFormatW(LOCALE_USER_DEFAULT, 0, &sysTime_local, NULL, outputWStr + current_len + 1, maxWLen - (current_len + 1));
+            if (time_len > 0) wlen += (time_len - 1);
+            else return false;
+        }
+        break;
+    case 1:
+        wlen = GetDateFormatW(LOCALE_USER_DEFAULT, DATE_SHORTDATE, &sysTime_local, NULL, outputWStr, maxWLen);
+        break;
+    case 2:
+        wlen = GetTimeFormatW(LOCALE_USER_DEFAULT, 0, &sysTime_local, NULL, outputWStr, maxWLen);
+        break;
+    case 4:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%04d", sysTime_local.wYear);
+        break;
+    case 5:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%02d", sysTime_local.wMonth);
+        break;
+    case 6:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%02d", sysTime_local.wDay);
+        break;
+    case 7:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%02d", sysTime_local.wHour);
+        break;
+    case 8:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%02d", sysTime_local.wMinute);
+        break;
+    case 9:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%02d", sysTime_local.wSecond);
+        break;
+    case 10:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%04d-%02d-%02d", sysTime_local.wYear, sysTime_local.wMonth, sysTime_local.wDay);
+        break;
+    case 11:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%02d:%02d:%02d", sysTime_local.wHour, sysTime_local.wMinute, sysTime_local.wSecond);
+        break;
+    case 12:
+        wlen = swprintf_s(outputWStr, static_cast<size_t>(maxWLen), L"%04d-%02d-%02d %02d:%02d:%02d",
+            sysTime_local.wYear, sysTime_local.wMonth, sysTime_local.wDay,
+            sysTime_local.wHour, sysTime_local.wMinute, sysTime_local.wSecond);
+        break;
+    default:
+        return false;
     }
 
     if (wlen <= 0 || wlen >= maxWLen) {
@@ -554,6 +617,7 @@ struct TrackedChangeCounts {
     int moves = 0;
     int formattingChanges = 0;
     int totalRevisions = 0;
+    std::set<std::string> uniqueFormattingChanges; // To count formatting changes like Word
 };
 
 void CountTrackedChangesRecursive(tinyxml2::XMLElement* elem, TrackedChangeCounts& counts) {
@@ -563,12 +627,46 @@ void CountTrackedChangesRecursive(tinyxml2::XMLElement* elem, TrackedChangeCount
     if (name) {
         if (strcmp(name, "w:ins") == 0) {
             counts.insertions++;
-        } else if (strcmp(name, "w:del") == 0) {
+        }
+        else if (strcmp(name, "w:del") == 0) {
             counts.deletions++;
-        } else if (strcmp(name, "w:moveFrom") == 0) {
+        }
+        else if (strcmp(name, "w:moveFrom") == 0) {
             counts.moves++;
-        } else if (strcmp(name, "w:rPrChange") == 0 || strcmp(name, "w:pPrChange") == 0) {
-            counts.formattingChanges++;
+        }
+        else {
+            // Strictly check for explicit formatting change tracking tags
+            std::string change_id = name;
+            bool isFormattingChange = false;
+
+            if (strcmp(name, "w:rPrChange") == 0 ||     // Run properties (character formatting) change
+                strcmp(name, "w:pPrChange") == 0 ||     // Paragraph properties change
+                strcmp(name, "w:sectPrChange") == 0 ||  // Section properties change
+                strcmp(name, "w:tblPrChange") == 0 ||   // Table properties change
+                strcmp(name, "w:tblGridChange") == 0 || // Table grid properties change
+                strcmp(name, "w:trPrChange") == 0 ||    // Table row properties change
+                strcmp(name, "w:tcPrChange") == 0)      // Table cell properties change
+            {
+                isFormattingChange = true;
+                // For these property changes, include the type of property (e.g., w:b, w:color, w:pStyle)
+                // This helps uniquely identify the specific type of formatting change being tracked.
+                if (elem->FirstChildElement()) {
+                    change_id += ":" + std::string(elem->FirstChildElement()->Name());
+                }
+                else {
+                    // Fallback: if no child, just use the change tag itself as the unique ID.
+                    change_id += ":noChild";
+                }
+            }
+            // Removed direct check for w:style here, as it defines, not tracks, unless wrapped by *PrChange.
+
+            if (isFormattingChange) {
+                // Add to unique set to count each *distinct* tracked formatting change only once
+                if (counts.uniqueFormattingChanges.find(change_id) == counts.uniqueFormattingChanges.end()) {
+                    counts.uniqueFormattingChanges.insert(change_id);
+                    counts.formattingChanges++;
+                }
+            }
         }
     }
 
@@ -577,19 +675,44 @@ void CountTrackedChangesRecursive(tinyxml2::XMLElement* elem, TrackedChangeCount
     }
 }
 
-TrackedChangeCounts GetTrackedChangeCounts(const std::string& documentXmlContent) {
+TrackedChangeCounts GetTrackedChangeCounts(const char* zipPath) {
     TrackedChangeCounts counts;
-    if (documentXmlContent.empty()) return counts;
+    mz_zip_archive zip_archive;
+    memset(&zip_archive, 0, sizeof(zip_archive));
 
-    tinyxml2::XMLDocument doc;
-    if (doc.Parse(documentXmlContent.c_str()) != tinyxml2::XML_SUCCESS) {
+    if (!mz_zip_reader_init_file(&zip_archive, zipPath, 0))
         return counts;
+
+    mz_uint num_files = mz_zip_reader_get_num_files(&zip_archive);
+    for (mz_uint i = 0; i < num_files; ++i)
+    {
+        mz_zip_archive_file_stat file_stat;
+        if (!mz_zip_reader_file_stat(&zip_archive, i, &file_stat))
+            continue;
+
+        const char* fname = file_stat.m_filename;
+        if (!fname) continue;
+
+        // Process only XML files within the "word/" directory (e.g., document.xml, styles.xml, etc.)
+        if (strncmp(fname, "word/", 5) != 0 || strstr(fname, ".xml") == nullptr)
+            continue;
+
+        size_t uncompressed_size = 0;
+        void* p = mz_zip_reader_extract_to_heap(&zip_archive, i, &uncompressed_size, 0);
+        if (!p) continue;
+
+        std::string content(static_cast<char*>(p), uncompressed_size);
+        mz_free(p);
+
+        tinyxml2::XMLDocument doc;
+        if (doc.Parse(content.c_str()) != tinyxml2::XML_SUCCESS) continue;
+
+        tinyxml2::XMLElement* root = doc.RootElement();
+        if (!root) continue;
+
+        CountTrackedChangesRecursive(root, counts);
     }
-
-    tinyxml2::XMLElement* root = doc.RootElement();
-    if (!root) return counts;
-
-    CountTrackedChangesRecursive(root, counts);
+    mz_zip_reader_end(&zip_archive);
     counts.totalRevisions = counts.insertions + counts.deletions + counts.moves + counts.formattingChanges;
     return counts;
 }
@@ -848,7 +971,7 @@ extern "C" {
 
         TrackedChangeCounts trackedCounts;
         if (fieldIndex >= FIELD_TOTAL_REVISIONS && fieldIndex <= FIELD_TOTAL_FORMATTING_CHANGES) {
-            trackedCounts = GetTrackedChangeCounts(documentXml);
+            trackedCounts = GetTrackedChangeCounts(fileName); // Call the updated function
         }
 
 
@@ -1117,7 +1240,7 @@ extern "C" {
         }
         case FIELD_TRACKED_CHANGES:
         {
-            bool hasChanges = HasTrackedChanges(documentXml);
+            bool hasChanges = HasTrackedChanges(fileName); // Call the updated function
             *((int*)fieldValue) = hasChanges ? 1 : 0;
             return ft_boolean;
         }
