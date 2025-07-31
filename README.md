@@ -9,7 +9,7 @@ This plugin extends Total Commander by allowing you to:
 * **View document metadata**: Title, subject, author, company, revision number, and more.
 * **Inspect tracked changes**: See total insertions, deletions, moves, and formatting changes.
 * **Detect document protection**: Check if protection or anonymisation is enabled.
-* **Count comments** and **list authors** who made tracked changes.
+* **Count comments** and **hidden text** in documents.
 * Works directly with `.docx` files using native parsing - no Office dependency.
 
 ---
